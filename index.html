@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Offline Cookie Website</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+    #editor { width: 100%; height: 100vh; border: none; font-family: monospace; font-size: 14px; }
+    #status { 
+      position: fixed; bottom: 10px; right: 10px; background: #000; color: #0f0; 
+      padding: 8px 12px; border-radius: 4px; font-size: 12px; z-index: 9999; 
+    }
+  </style>
+</head>
+<body>
+  <textarea id="editor" spellcheck="false"></textarea>
+  <div id="status">Loading...</div>
+
+  <script>
+    const editor = document.getElementById('editor');
+    const status = document.getElementById('status');
+    const COOKIE_NAME = 'offline_website_data';
+    const MAX_COOKIE_SIZE = 4000; // browsers allow ~4096 bytes per cookie
+
+    // Default starter page if nothing is saved
+    const defaultHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Offline Site</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f0f0f0; padding: 2rem; text-align: center; }
+    h1 { color: #333; }
+    button { padding: 10px 20px; font-size: 1rem; margin: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Welcome to Your Offline Website!</h1>
+  <p>Everything is saved in a browser cookie. Edit the source on the left and refresh to see changes.</p>
+  <button onclick="alert('It works offline!')">Click me</button>
+  <hr>
+  <p><small>Edit the HTML in the editor and refresh the page to see your changes.</small></p>
+</body>
+</html>`.trim();
+
+    // Read from cookie
+    function getSavedData() {
+      const match = document.cookie.split('; ').find(row => row.startsWith(COOKIE_NAME + '='));
+      if (match) {
+        try {
+          return decodeURIComponent(match.split('=')[1]);
+        } catch(e) {
+          return null;
+        }
+      }
+      return null;
+    }
+
+    // Save to cookie (with compression hint for very small payloads)
+    function saveToCookie(data) {
+      if (encodeURIComponent(data).length > MAX_COOKIE_SIZE) {
+        status.textContent = 'Warning: Content too big for cookie!';
+        status.style.background = 'red';
+        return false;
+      }
+      document.cookie = `${COOKIE_NAME}=${encodeURIComponent(data)};path=/;max-age=31536000`; // 1 year
+      status.textContent = 'Saved to cookie! (' + (encodeURIComponent(data).length) + ' bytes)';
+      status.style.background = '#000';
+      return true;
+    }
+
+    // Load content
+    let saved = getSavedData();
+    if (saved && saved.length > 100) {  // basic sanity check
+      editor.value = saved;
+      status.textContent = 'Loaded from cookie (' + encodeURIComponent(saved).length + ' bytes)';
+    } else {
+      editor.value = defaultHTML;
+      status.textContent = 'No saved data — using default template';
+    }
+
+    // Auto-save on change (with debounce)
+    let timeout;
+    editor.addEventListener('input', () => {
+      clearTimeout(timeout);
+      status.textContent = 'Typing...';
+      status.style.background = 'orange';
+      timeout = setTimeout(() => {
+        saveToCookie(editor.value);
+      }, 1000);
+    });
+
+    // When you press Ctrl+S or Cmd+S → immediate save
+    document.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveToCookie(editor.value);
+      }
+    });
+
+    // Warning when cookie is getting full
+    setInterval(() => {
+      const current = editor.value;
+      const size = encodeURIComponent(current).length;
+      if (size > MAX_COOKIE_SIZE * 0.9) {
+        status.textContent = `Almost full! ${size}/${MAX_COOKIE_SIZE} bytes`;
+        status.style.background = 'red';
+      }
+    }, 5000);
+  </script>
+</body>
+</html>
