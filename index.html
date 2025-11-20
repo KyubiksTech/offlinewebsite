@@ -3,83 +3,130 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Forever Offline Site</title>
-  <style>
-    body { font-family: system-ui, sans-serif; margin: 2rem; background: #222; color: #0f0; }
-    textarea { width: 100%; height: 70vh; background: #000; color: #0f0; font-family: monospace; }
-    button { padding: 12px 24px; font-size: 1.2rem; margin: 10px 5px; }
-    #preview { border: 1px solid #0f0; padding: 1rem; margin-top: 1rem; background: #000; min-height: 200px; }
+  <title>Offline Cookie Website</title>
+  <style id="pageStyle">
+    /* This will be replaced by your saved site */
+    body { font-family: system-ui; text-align: center; padding: 50px; background: #000; color: #0f0; }
+    #editor { width: 100%; height: 100vh; background: #111; color: #0f0; font-family: monospace; font-size: 14px; }
+    #status { position: fixed; bottom: 10px; right: 10px; background: #000; color: #0f0; padding: 8px; border: 1px solid #0f0; border-radius: 4px; font-size: 12px; z-index: 10000; }
   </style>
 </head>
 <body>
-  <h1>Forever Offline Website Editor</h1>
-  <p>Edit below → Click "Save & Make Bookmark" → Drag the link to bookmarks bar</p>
-  
-  <textarea id="code" spellcheck="false"></textarea><br>
-  
-  <button onclick="save()">Save to localStorage</button>
-  <button onclick="makeBookmarkable()">Generate Bookmark →</button>
-  <button onclick="load()">Load Latest</button>
-  
-  <div id="preview"></div>
 
-  <script>
-    const textarea = document.getElementById('code');
-    const preview = document.getElementById('preview');
+<div id="status">Loading from cookie...</div>
 
-    const defaultCode = `<!DOCTYPE html>
+<!-- Editor is hidden by default -->
+<textarea id="editor" style="display:none;" spellcheck="false"></textarea>
+
+<script>
+// Secret key to enter editor: Ctrl+Shift+E or long tap 5 seconds
+let pressTimer;
+
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.shiftKey && e.key === 'E') {
+    e.preventDefault();
+    showEditor();
+  }
+});
+document.addEventListener('touchstart', () => {
+  pressTimer = setTimeout(showEditor, 5000);
+});
+document.addEventListener('touchend', () => clearTimeout(pressTimer));
+
+const COOKIE_NAME = 'MY_OFFLINE_SITE_COOKIE';
+const editor = document.getElementById('editor');
+const status = document.getElementById('status');
+
+// Get cookie
+function getCookie() {
+  const match = document.cookie.split('; ').find(row => row.startsWith(COOKIE_NAME + '='));
+  return match ? decodeURIComponent(match.split('=')[1]) : null;
+}
+
+// Save cookie (max ~4KB)
+function saveCookie(data) {
+  const encoded = encodeURIComponent(data);
+  if (encoded.length > 3900) {
+    status.textContent = 'Too big for cookie!';
+    status.style.background = 'red';
+    return false;
+  }
+  document.cookie = `${COOKIE_NAME}=${encoded};path=/;max-age=31536000`;
+  status.textContent = `Saved! (${encoded.length} bytes)`;
+  return true;
+}
+
+// Show full editor
+function showEditor() {
+  document.body.innerHTML = `
+    <h2 style="color:#0f0;background:#000;padding:10px;">Editor Mode (Ctrl+Shift+E to toggle)</h2>
+    <textarea id="editor" spellcheck="false">${editor.value}</textarea>
+    <button onclick="saveAndExit()" style="padding:10px 20px;font-size:18px;">Save & Show Website</button>
+    <div id="status">Editor active</div>
+  `;
+  document.getElementById('editor').select();
+}
+
+// Save and render the site
+function saveAndExit() {
+  const code = document.getElementById('editor').value;
+  saveCookie(code);
+  location.reload(); // This will now render your site
+}
+
+// Default beautiful starter site
+const defaultSite = `<!DOCTYPE html>
 <html>
-<head><title>My Site</title></head>
-<body style="font-family:Arial;text-align:center;padding:50px;background:#1a1a1a;color:#fff;">
+<head>
+  <title>My Offline Site</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {margin:0;font-family:system-ui;background:linear-gradient(45deg,#120033,#000);color:#fff;height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;}
+    h1 {font-size:3rem;text-shadow:0 0 20px #0ff;}
+    button {padding:15px 30px;margin:10px;font-size:1.2rem;background:#0ff;color:#000;border:none;border-radius:50px;cursor:pointer;box-shadow:0 0 20px #0ff;}
+    button:hover {transform:scale(1.1);transition:0.3s;}
+  </style>
+</head>
+<body>
   <h1>It Works Offline!</h1>
-  <p>This site lives in your browser forever.</p>
-  <button onclick="alert('Yes! No internet needed')">Click me</button>
+  <p>Your website lives in a cookie</p>
+  <button onclick="alert('Yes! No internet needed forever')">Click Me</button>
   <hr>
-  <small>Edited with Forever Offline Editor</small>
+  <small>Hold Ctrl+Shift+E to edit</small>
 </body>
 </html>`;
 
-    function load() {
-      const saved = localStorage.getItem('forever_offline_site');
-      textarea.value = saved || defaultCode;
-      preview.innerHTML = textarea.value;
-    }
+// MAIN: Try to load from cookie
+let saved = getCookie();
 
-    function save() {
-      localStorage.setItem('forever_offline_site', textarea.value);
-      alert('Saved permanently in your browser!');
-      preview.innerHTML = textarea.value;
-    }
+if (saved && saved.includes('<html') && saved.length > 100) {
+  // SUCCESS: Render the saved website directly!
+  document.open();
+  document.write(saved);
+  document.close();
+  // Add secret editor trigger even in rendered site
+  document.body.insertAdjacentHTML('beforeend', '<div id="status">Website loaded from cookie! Hold Ctrl+Shift+E to edit</div>');
+} else {
+  // First time or empty → show editor with default site
+  editor.value = defaultSite;
+  editor.style.display = 'block';
+  status.textContent = 'First time? Edit below then click Save & Show Website';
 
-    function makeBookmarkable() {
-      const code = btoa(unescape(encodeURIComponent(textarea.value))); // base64
-      const dataURL = 'data:text/html;base64,' + code;
-      
-      // Create a temporary link to drag
-      const link = document.createElement('a');
-      link.href = dataURL;
-      link.innerText = 'My Offline Site (drag me to bookmarks!)';
-      link.style.cssText = 'background:#0f0;color:#000;padding:15px 30px;font-size:18px;text-decoration:none;border-radius:8px;display:inline-block;margin:20px;';
-      link.draggable = true;
-      
-      // Show instructions
-      document.body.innerHTML = `
-        <h1>Success!</h1>
-        <p>Drag this green button to your bookmarks bar:</p>
-        ${link.outerHTML}
-        <p>Now you can open your site anytime — even offline!</p>
-        <hr>
-        <button onclick="history.back()">Go Back to Editor</button>
-      `;
-    }
+  // Auto-save on change
+  editor.addEventListener('input', () => {
+    status.textContent = 'Typing... (will auto-save)';
+    clearTimeout(window.saveTimer);
+    window.saveTimer = setTimeout(() => saveCookie(editor.value), 1000);
+  });
 
-    // Auto-load on start
-    load();
+  // Add save button
+  const btn = document.createElement('button');
+  btn.textContent = 'Save & Show My Website';
+  btn.style.cssText = 'padding:15px 30px;font-size:20px;background:#0f0;color:#000;border:none;border-radius:8px;margin:10px;';
+  btn.onclick = () => { saveCookie(editor.value); location.reload(); };
+  document.body.insertBefore(btn, editor);
+}
+</script>
 
-    // Live preview
-    textarea.addEventListener('input', () => {
-      preview.innerHTML = textarea.value;
-    });
-  </script>
 </body>
 </html>
