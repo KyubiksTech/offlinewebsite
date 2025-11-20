@@ -4,24 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Offline Cookie Website</title>
-  <style id="pageStyle">
-    /* This will be replaced by your saved site */
-    body { font-family: system-ui; text-align: center; padding: 50px; background: #000; color: #0f0; }
-    #editor { width: 100%; height: 100vh; background: #111; color: #0f0; font-family: monospace; font-size: 14px; }
-    #status { position: fixed; bottom: 10px; right: 10px; background: #000; color: #0f0; padding: 8px; border: 1px solid #0f0; border-radius: 4px; font-size: 12px; z-index: 10000; }
-  </style>
 </head>
 <body>
 
-<div id="status">Loading from cookie...</div>
-
-<!-- Editor is hidden by default -->
-<textarea id="editor" style="display:none;" spellcheck="false"></textarea>
-
 <script>
-// Secret key to enter editor: Ctrl+Shift+E or long tap 5 seconds
-let pressTimer;
-
+// Secret way to enter editor: Ctrl+Shift+E or long tap 5 seconds
+let longPressTimer;
 document.addEventListener('keydown', e => {
   if (e.ctrlKey && e.shiftKey && e.key === 'E') {
     e.preventDefault();
@@ -29,102 +17,78 @@ document.addEventListener('keydown', e => {
   }
 });
 document.addEventListener('touchstart', () => {
-  pressTimer = setTimeout(showEditor, 5000);
+  longPressTimer = setTimeout(showEditor, 5000);
 });
-document.addEventListener('touchend', () => clearTimeout(pressTimer));
+document.addEventListener('touchend', () => clearTimeout(longPressTimer));
 
-const COOKIE_NAME = 'MY_OFFLINE_SITE_COOKIE';
-const editor = document.getElementById('editor');
-const status = document.getElementById('status');
+const COOKIE = 'REAL_OFFLINE_SITE';
 
-// Get cookie
 function getCookie() {
-  const match = document.cookie.split('; ').find(row => row.startsWith(COOKIE_NAME + '='));
-  return match ? decodeURIComponent(match.split('=')[1]) : null;
+  const c = document.cookie.split('; ').find(x => x.startsWith(COOKIE+'='));
+  return c ? decodeURIComponent(c.split('=')[1]) : null;
 }
 
-// Save cookie (max ~4KB)
-function saveCookie(data) {
-  const encoded = encodeURIComponent(data);
-  if (encoded.length > 3900) {
-    status.textContent = 'Too big for cookie!';
-    status.style.background = 'red';
-    return false;
-  }
-  document.cookie = `${COOKIE_NAME}=${encoded};path=/;max-age=31536000`;
-  status.textContent = `Saved! (${encoded.length} bytes)`;
-  return true;
+function setCookie(html) {
+  document.cookie = `${COOKIE}=${encodeURIComponent(html)};path=/;max-age=31536000`;
 }
 
-// Show full editor
+// SHOW EDITOR (only when you press the secret key)
 function showEditor() {
+  const saved = getCookie() || defaultSite;
   document.body.innerHTML = `
-    <h2 style="color:#0f0;background:#000;padding:10px;">Editor Mode (Ctrl+Shift+E to toggle)</h2>
-    <textarea id="editor" spellcheck="false">${editor.value}</textarea>
-    <button onclick="saveAndExit()" style="padding:10px 20px;font-size:18px;">Save & Show Website</button>
-    <div id="status">Editor active</div>
+    <style>
+      body {background:#000;color:#0f0;font-family:monospace;margin:0;padding:10px;}
+      textarea {width:100%;height:80vh;background:#111;color:#0f0;border:1px solid #0f0;padding:10px;font-size:14px;}
+      button {padding:15px 30px;font-size:18px;background:#0f0;color:#000;border:none;border-radius:8px;margin:10px;cursor:pointer;}
+      #status {position:fixed;bottom:10px;right:10px;background:#000;color:#0f0;padding:8px;border:1px solid #0f0;border-radius:4px;}
+    </style>
+    <h2>Editor Mode (Ctrl+Shift+E to toggle)</h2>
+    <textarea id="code">${saved.replace(/</g, '<')}</textarea><br>
+    <button onclick="saveAndShow()">Save & Show Real Website</button>
+    <div id="status">Edit your site → then click the button</div>
   `;
-  document.getElementById('editor').select();
+  window.saveAndShow = () => {
+    const code = document.getElementById('code').value.trim();
+    setCookie(code);
+    location.reload();
+  };
 }
 
-// Save and render the site
-function saveAndExit() {
-  const code = document.getElementById('editor').value;
-  saveCookie(code);
-  location.reload(); // This will now render your site
-}
-
-// Default beautiful starter site
+// DEFAULT beautiful starter website
 const defaultSite = `<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>My Offline Site</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Offline Website</title>
   <style>
-    body {margin:0;font-family:system-ui;background:linear-gradient(45deg,#120033,#000);color:#fff;height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;}
-    h1 {font-size:3rem;text-shadow:0 0 20px #0ff;}
-    button {padding:15px 30px;margin:10px;font-size:1.2rem;background:#0ff;color:#000;border:none;border-radius:50px;cursor:pointer;box-shadow:0 0 20px #0ff;}
-    button:hover {transform:scale(1.1);transition:0.3s;}
+    body {margin:0;font-family:Arial,Helvetica,sans-serif;background:#0f0f0;color:#fff;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:20px;}
+    h1 {font-size:3.5rem;margin:0;text-shadow:0 0 20px #0ff;}
+    p {font-size:1.3rem;max-width:600px;}
+    button {padding:16px 32px;margin:20px;font-size:1.3rem;background:#0ff;color:#000;border:none;border-radius:50px;cursor:pointer;box-shadow:0 0 30px #0ff;}
+    button:hover {transform:scale(1.1);}
+    small {position:absolute;bottom:20px;color:#aaa;}
   </style>
 </head>
 <body>
-  <h1>It Works Offline!</h1>
-  <p>Your website lives in a cookie</p>
-  <button onclick="alert('Yes! No internet needed forever')">Click Me</button>
-  <hr>
+  <h1>Welcome to Your Offline Website!</h1>
+  <p>This entire site lives in a browser cookie.<br>It works 100% offline forever.</p>
+  <button onclick="alert('Yes! No internet needed')">Click Me – It Works!</button>
   <small>Hold Ctrl+Shift+E to edit</small>
 </body>
 </html>`;
 
-// MAIN: Try to load from cookie
-let saved = getCookie();
+// MAIN LOGIC
+const saved = getCookie();
 
-if (saved && saved.includes('<html') && saved.length > 100) {
-  // SUCCESS: Render the saved website directly!
-  document.open();
+if (saved && saved.includes('<html') && saved.length > 200) {
+  // This renders YOUR real saved website instantly (even offline!)
   document.write(saved);
   document.close();
-  // Add secret editor trigger even in rendered site
-  document.body.insertAdjacentHTML('beforeend', '<div id="status">Website loaded from cookie! Hold Ctrl+Shift+E to edit</div>');
 } else {
-  // First time or empty → show editor with default site
-  editor.value = defaultSite;
-  editor.style.display = 'block';
-  status.textContent = 'First time? Edit below then click Save & Show Website';
-
-  // Auto-save on change
-  editor.addEventListener('input', () => {
-    status.textContent = 'Typing... (will auto-save)';
-    clearTimeout(window.saveTimer);
-    window.saveTimer = setTimeout(() => saveCookie(editor.value), 1000);
-  });
-
-  // Add save button
-  const btn = document.createElement('button');
-  btn.textContent = 'Save & Show My Website';
-  btn.style.cssText = 'padding:15px 30px;font-size:20px;background:#0f0;color:#000;border:none;border-radius:8px;margin:10px;';
-  btn.onclick = () => { saveCookie(editor.value); location.reload(); };
-  document.body.insertBefore(btn, editor);
+  // First time → force editor with default site
+  setCookie(defaultSite);
+  showEditor();
 }
 </script>
 
